@@ -1,0 +1,56 @@
+# frozen_string_literal: true
+
+# An object that manages how a piece can move and display.
+class Piece
+  def initialize(board, rank, file, player)
+    @board = board
+    @rank = rank
+    @file = file
+    @player = player
+  end
+
+  # The core method of Piece class, and it should be implemented by its derived classes.
+  # First, verifies whether the move towards the target square is valid.
+  # If it is, carries out the move by changing the game state.
+  # If not, raises a MoveError that should be handled by the caller.
+  def move!(tgt_rank, tgt_file)
+    raise NotImplementedError
+  end
+end
+
+# The derived classes are as follows
+# TODO: split them into independent files
+
+# Manages a single Rook,
+# which moves any number of squares horizonally or vertically.
+class Rook < Piece
+end
+
+# Manages a single Bishop,
+# which moves any number of squares diagonally.
+class Bishop < Piece
+end
+
+# Manages a single Knight,
+# which moves in an "L" shape: two squares in one direction, then one square perpendicular.
+# It can jump over other pieces.
+class Knight < Piece
+end
+
+# Manages a single Queen,
+# which moves any number of squares in any straight or diagonal direction.
+class Queen < Piece
+end
+
+# Manages a single King,
+# which moves one square in any direction.
+# TODO: explains check, checkmate, stalement and castling.
+class King < Piece
+end
+
+# Manages a single Pawn,
+# which moves forward one square (but never backward).
+# On its first move only, it may move forward two squares.
+# It captures diagonally forward one square.
+class Pawn < Piece
+end
