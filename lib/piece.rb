@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
+require_relative 'utils/chess_errors'
+
 # An object that manages how a piece can move and display.
 class Piece
+  include ChessErrors
+
   BLACK_SYMBOL = '🦀'
   WHITE_SYMBOL = '🐌'
   FALLBACK_SYMBOL = '🐈'
@@ -13,6 +17,8 @@ class Piece
     @rank = rank
     @file = file
     @player = player
+
+    board.add(@rank, @file, self)
   end
 
   # The core method of Piece class, and it should be implemented by its derived classes.
@@ -24,6 +30,10 @@ class Piece
 
     @board.remove(@rank, @file)
     @board.add(tgt_rank, tgt_file, self)
+
+    @rank = tgt_rank
+    @file = tgt_file
+    nil
   end
 
   def verify_legality(tgt_rank, tgt_file)
@@ -37,7 +47,7 @@ class Piece
     capture = @board.piece_at(tgt_rank, tgt_file)
 
     return if capture.nil?
-    raise FriendFireError if capture.player == @player
+    raise FriendFireError.new(piece: self, tgt_rank: tgt_rank, tgt_file: tgt_file) if capture.player == @player
   end
 
   # For now, pieces' outlooks are hard-coded at such an early development stage.
@@ -53,7 +63,7 @@ class Piece
   end
 
   def inspect
-    "<#{player}'s #{self.class.name} at (#{rank}, #{file})>"
+    "<#{@player}'s #{self.class.name} at (#{@rank}, #{@file})>"
   end
 end
 
