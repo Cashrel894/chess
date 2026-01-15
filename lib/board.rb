@@ -37,7 +37,7 @@ class Board
     @grid.flatten.each do |piece|
       next if piece.nil?
 
-      str += "#{piece}\n"
+      str += "#{piece.inspect}\n"
     end
     str
   end
