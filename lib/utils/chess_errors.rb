@@ -4,7 +4,7 @@
 module ChessErrors
   # Stores any error that occurs in Piece's move! method.
   class MoveError < StandardError
-    def initialize(message = self.class.name, piece = nil, tgt_rank = nil, tgt_file = nil)
+    def initialize(message: self.class.name, piece: nil, tgt_rank: nil, tgt_file: nil)
       super(message)
       @piece = piece # the piece involved in the error
       @tgt_rank = tgt_rank
@@ -13,12 +13,16 @@ module ChessErrors
 
     def to_s
       if @tgt_file && @tgt_rank
-        "#{super} when trying to move #{piece} to (#{tgt_rank}, #{tgt_file})"
+        "#{super} when trying to move #{@piece.inspect} to (#{@tgt_rank}, #{@tgt_file})"
       elsif @piece
-        "#{super} when trying to move #{piece}"
+        "#{super} when trying to move #{@piece.inspect}"
       else
         super
       end
+    end
+
+    def inspect
+      to_s
     end
   end
 
