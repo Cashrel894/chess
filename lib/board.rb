@@ -31,4 +31,14 @@ class Board
     end
     str
   end
+
+  def inspect
+    str = "Board Object:\n"
+    @grid.flatten.each do |piece|
+      next if piece.nil?
+
+      str += "#{piece}\n"
+    end
+    str
+  end
 end
