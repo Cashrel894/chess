@@ -25,7 +25,7 @@ class Board
     str = ''
     @grid.each do |row|
       row.each do |piece|
-        str += piece.nil? ? PLACEHOLDER_CHAR : piece
+        str += piece.nil? ? PLACEHOLDER_CHAR : piece.to_s
       end
       str += "\n"
     end
