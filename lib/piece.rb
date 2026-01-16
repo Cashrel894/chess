@@ -10,7 +10,7 @@ class Piece
   WHITE_SYMBOL = '🐌'
   FALLBACK_SYMBOL = '🐈'
 
-  attr_accessor :player
+  attr_accessor :board, :rank, :file, :player
 
   def initialize(board, rank, file, player)
     @board = board
@@ -33,7 +33,7 @@ class Piece
 
     @rank = tgt_rank
     @file = tgt_file
-    nil
+    true
   end
 
   def verify_legality(tgt_rank, tgt_file)
@@ -41,13 +41,17 @@ class Piece
     verify_capture(tgt_rank, tgt_file)
   end
 
-  def verify_path(tgt_rank, tgt_file) end
+  def verify_path(tgt_rank, tgt_file)
+    true
+  end
 
   def verify_capture(tgt_rank, tgt_file)
     capture = @board.piece_at(tgt_rank, tgt_file)
 
     return if capture.nil?
     raise FriendFireError.new(piece: self, tgt_rank: tgt_rank, tgt_file: tgt_file) if capture.player == @player
+
+    true
   end
 
   # For now, pieces' outlooks are hard-coded at such an early development stage.
