@@ -5,6 +5,9 @@ require_relative 'utils/chess_helpers'
 
 # Includes Piece's methods in charge of verifying whether a move is legal.
 module MoveVerifier
+  include ChessHelpers::MoveHelpers
+  include ChessErrors
+
   def verify_legality(tgt_rank, tgt_file)
     verify_path(tgt_rank, tgt_file)
     verify_capture(tgt_rank, tgt_file)
@@ -18,7 +21,7 @@ module MoveVerifier
   def verify_reach(tgt_rank, tgt_file)
     return true if reachable?(tgt_rank, tgt_file)
 
-    throw OutOfReachError(piece: self, tgt_rank: tgt_rank, tgt_file: tgt_file)
+    throw OutOfReachError.new(piece: self, tgt_rank: tgt_rank, tgt_file: tgt_file)
   end
 
   def reachable?(_tgt_rank, _tgt_file)
@@ -28,7 +31,7 @@ module MoveVerifier
   def verify_blocked(tgt_rank, tgt_file)
     return true unless blocked?(tgt_rank, tgt_file)
 
-    throw BlockedError(piece: self, tgt_rank: tgt_rank, tgt_file: tgt_file)
+    throw BlockedError.new(piece: self, tgt_rank: tgt_rank, tgt_file: tgt_file)
   end
 
   def blocked?(_tgt_rank, _tgt_file)
@@ -48,7 +51,6 @@ end
 # An object that manages how a piece can move and display.
 class Piece
   include MoveVerifier
-  include ChessErrors
 
   attr_accessor :board, :rank, :file, :player
 
@@ -111,7 +113,7 @@ end
 # Manages a single Queen,
 # which moves any number of squares in any straight or diagonal direction.
 class Queen < Piece
-  include ChessHelpers::MoveHelpers::QueenHelpers
+  include QueenHelpers
 
   def black_symbol
     '♛'
@@ -166,6 +168,19 @@ end
 # which moves in an "L" shape: two squares in one direction, then one square perpendicular.
 # It can jump over other pieces.
 class Knight < Piece
+  include KnightHelpers
+
+  def black_symbol
+    '♞'
+  end
+
+  def white_symbol
+    '♘'
+  end
+
+  def reachable?(tgt_rank, tgt_file)
+    knight_reachable?(tgt_rank, tgt_file)
+  end
 end
 
 # Manages a single King,
