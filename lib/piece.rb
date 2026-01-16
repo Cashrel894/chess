@@ -21,7 +21,7 @@ module MoveVerifier
     throw OutOfReachError(piece: self, tgt_rank: tgt_rank, tgt_file: tgt_file)
   end
 
-  def reachable?(tgt_rank, tgt_file)
+  def reachable?(_tgt_rank, _tgt_file)
     true
   end
 
@@ -31,7 +31,7 @@ module MoveVerifier
     throw BlockedError(piece: self, tgt_rank: tgt_rank, tgt_file: tgt_file)
   end
 
-  def blocked?(tgt_rank, tgt_file)
+  def blocked?(_tgt_rank, _tgt_file)
     false
   end
 
