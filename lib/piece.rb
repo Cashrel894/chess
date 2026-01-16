@@ -179,7 +179,7 @@ class Knight < Piece
   end
 
   def reachable?(tgt_rank, tgt_file)
-    knight_reachable?(tgt_rank, tgt_file)
+    knight_reachable?(self, tgt_rank, tgt_file)
   end
 end
 
