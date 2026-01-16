@@ -15,10 +15,12 @@ class Board
 
   def add(rank, file, piece)
     @grid[rank][file] = piece
+    nil
   end
 
   def remove(rank, file)
     @grid[rank][file] = nil
+    nil
   end
 
   def to_s
