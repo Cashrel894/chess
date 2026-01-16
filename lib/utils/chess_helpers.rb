@@ -59,6 +59,10 @@ module ChessHelpers
         [@rank.abs, @file.abs].sort == [1, 2].freeze
       end
 
+      def unit?
+        [@rank.abs, @file.abs].max == 1
+      end
+
       def zero?
         @rank.zero? && @file.zero?
       end
@@ -125,7 +129,11 @@ module ChessHelpers
       end
     end
 
+    # Includes helpers methods for King.
     module KingHelpers
+      def king_reachable?(king, tgt_rank, tgt_file)
+        direction_of(king, tgt_rank, tgt_file).unit?
+      end
     end
 
     module PawnHelpers

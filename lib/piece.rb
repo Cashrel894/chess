@@ -187,6 +187,19 @@ end
 # which moves one square in any direction.
 # TODO: explains check, checkmate, stalement and castling.
 class King < Piece
+  include KingHelpers
+
+  def black_symbol
+    '♚'
+  end
+
+  def white_symbol
+    '♔'
+  end
+
+  def reachable?(tgt_rank, tgt_file)
+    king_reachable?(self, tgt_rank, tgt_file)
+  end
 end
 
 # Manages a single Pawn,
