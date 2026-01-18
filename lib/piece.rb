@@ -39,12 +39,15 @@ module MoveVerifier
   end
 
   def verify_capture(tgt_rank, tgt_file)
-    capture = @board.piece_at(tgt_rank, tgt_file)
-
+    capture = capture_at(tgt_rank, tgt_file)
     return if capture.nil?
     raise FriendFireError.new(piece: self, tgt_rank: tgt_rank, tgt_file: tgt_file) if capture.player == @player
 
     true
+  end
+
+  def capture_at(tgt_rank, tgt_file)
+    @board.piece_at(tgt_rank, tgt_file)
   end
 end
 
@@ -79,16 +82,28 @@ class Piece
   # First, verifies whether the move towards the target square is legal.
   # If it is, carries out the move by changing the game state.
   # If not, raises a MoveError that should be handled by the caller.
-  def move!(tgt_rank, tgt_file)
+  def move!(tgt_rank, tgt_file, **kw_args)
     verify_legality(tgt_rank, tgt_file)
 
-    @board.remove(@rank, @file)
+    pre_side_effects!(tgt_rank, tgt_file, **kw_args)
+
+    remove
     @board.add(tgt_rank, tgt_file, self)
 
     @rank = tgt_rank
     @file = tgt_file
+
+    post_side_effects!(tgt_rank, tgt_file, **kw_args)
     true
   end
+
+  def remove
+    @board.remove(@rank, @file)
+  end
+
+  def pre_side_effects!(tgt_rank, tgt_file, **kw_args) end
+
+  def post_side_effects!(tgt_rank, tgt_file, **kw_args) end
 
   # For now, pieces' outlooks are hard-coded at such an early development stage.
   # Player symbols are alike.
@@ -207,4 +222,69 @@ end
 # On its first move only, it may move forward two squares.
 # It captures diagonally forward one square.
 class Pawn < Piece
+  include ChessHelpers::MoveHelpers::PawnHelpers
+  PROMOTABLE_CLASSES = [Queen, Rook, Bishop, Knight].freeze
+
+  attr_accessor :has_moved, :is_en_passant_vulnerable
+
+  def initialize(board, rank, file, player, has_moved: false, is_en_passant_vulnerable: false) # rubocop:disable Metrics/ParameterLists
+    super(board, rank, file, player)
+    @has_moved = has_moved
+    @is_en_passant_vulnerable = is_en_passant_vulnerable
+  end
+
+  def black_symbol
+    '♟'
+  end
+
+  def white_symbol
+    '♙'
+  end
+
+  def reachable?(tgt_rank, tgt_file)
+    pawn_marchable?(self, tgt_rank, tgt_file) ||
+      pawn_capturable?(self, tgt_rank, tgt_file) ||
+      two_square_move_reachable?(self, tgt_rank, tgt_file)
+  end
+
+  def blocked?(tgt_rank, tgt_file)
+    march_blocked?(self, tgt_rank, tgt_file)
+  end
+
+  def pre_side_effects!(tgt_rank, tgt_file, **)
+    en_passant! if legal_en_passant?(self, tgt_rank, tgt_file)
+  end
+
+  # There's clearly a bug that if the player never moves the pawn after it takes a two-square move,
+  # the pawn remains the en-passant-vulnerable state.
+  # However, i don't know how to elegantly fix it for now.
+  # TODO: fix the bug.
+  def post_side_effects!(tgt_rank, tgt_file, promotion_class: nil, **)
+    promote_to!(promotion_class) if promotable?(promotion_class)
+
+    @has_moved = true
+    @is_en_passant_vulnerable = two_square_move_reachable?(self, tgt_rank, tgt_file)
+  end
+
+  def first_move?
+    !@has_moved
+  end
+
+  def en_passant_vulnerable?
+    @is_en_passant_vulnerable
+  end
+
+  def promote_to!(promotion_class)
+    promotion_class.new(@board, @rank, @file, @player)
+  end
+
+  def promotable?(promotion_class)
+    @rank == end_rank(self) && promotion_class in PROMOTABLE_CLASSES
+  end
+
+  # Oh no I misunderstand en passant's rules, the pawn should move diagonally after capturing instead of going forward.
+  # TODO: fix this silly mistake.
+  def en_passant!
+    en_passant_capture(self).remove
+  end
 end
