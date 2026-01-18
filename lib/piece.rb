@@ -8,14 +8,12 @@ module MoveVerifier
   include ChessHelpers::MoveHelpers
   include ChessErrors
 
-  def verify_legality(tgt_rank, tgt_file)
-    verify_path(tgt_rank, tgt_file)
-    verify_capture(tgt_rank, tgt_file)
-  end
-
-  def verify_path(tgt_rank, tgt_file)
+  # Collects all verifying methods needed.
+  def verify_legality(tgt_rank, tgt_file, **kw_args)
     verify_reach(tgt_rank, tgt_file)
     verify_blocked(tgt_rank, tgt_file)
+    verify_capture(tgt_rank, tgt_file)
+    verify_side_effects(tgt_rank, tgt_file, **kw_args)
   end
 
   def verify_reach(tgt_rank, tgt_file)
@@ -24,18 +22,10 @@ module MoveVerifier
     throw OutOfReachError.new(piece: self, tgt_rank: tgt_rank, tgt_file: tgt_file)
   end
 
-  def reachable?(_tgt_rank, _tgt_file)
-    true
-  end
-
   def verify_blocked(tgt_rank, tgt_file)
     return true unless blocked?(tgt_rank, tgt_file)
 
     throw BlockedError.new(piece: self, tgt_rank: tgt_rank, tgt_file: tgt_file)
-  end
-
-  def blocked?(_tgt_rank, _tgt_file)
-    false
   end
 
   def verify_capture(tgt_rank, tgt_file)
@@ -44,6 +34,17 @@ module MoveVerifier
     raise FriendFireError.new(piece: self, tgt_rank: tgt_rank, tgt_file: tgt_file) if capture.player == @player
 
     true
+  end
+
+  # In most cases, only the following verifying helpers should be overridden.
+  def verify_side_effects(tgt_rank, tgt_file, **kw_args) end
+
+  def reachable?(_tgt_rank, _tgt_file)
+    true
+  end
+
+  def blocked?(_tgt_rank, _tgt_file)
+    false
   end
 
   def capture_at(tgt_rank, tgt_file)
@@ -66,6 +67,8 @@ class Piece
     board.add(@rank, @file, self)
   end
 
+  # Pieces' representations on board are defined as followed.
+  # Derived classes should at least override the black & white symbol.
   def black_symbol
     '🦀'
   end
@@ -82,17 +85,29 @@ class Piece
   # First, verifies whether the move towards the target square is legal.
   # If it is, carries out the move by changing the game state.
   # If not, raises a MoveError that should be handled by the caller.
+  # Accepts extra keyword arguments for side effects like pawn promotion.
   def move!(tgt_rank, tgt_file, **kw_args)
-    verify_legality(tgt_rank, tgt_file)
+    # Verifies if the move to the target square is legal according to the Chess rules.
+    # If not, throws an error.
+    verify_legality(tgt_rank, tgt_file, **kw_args)
 
+    # Carries out side effects before the move actually happens.
+    # e.g.: pawns capture en-passants.
     pre_side_effects!(tgt_rank, tgt_file, **kw_args)
 
+    # Removes itself from the original square.
     remove
+
+    # Adds itself to the target square.
+    # Note that it can be seen as a capture if there's a enemy piece in the target square.
     @board.add(tgt_rank, tgt_file, self)
 
+    # Updates positional state.
     @rank = tgt_rank
     @file = tgt_file
 
+    # Carries out side effects after the move happens.
+    # e.g.: pawns promote.
     post_side_effects!(tgt_rank, tgt_file, **kw_args)
     true
   end
@@ -222,7 +237,7 @@ end
 # On its first move only, it may move forward two squares.
 # It captures diagonally forward one square.
 class Pawn < Piece
-  include ChessHelpers::MoveHelpers::PawnHelpers
+  include PawnHelpers
   PROMOTABLE_CLASSES = [Queen, Rook, Bishop, Knight].freeze
 
   attr_accessor :has_moved, :is_en_passant_vulnerable
