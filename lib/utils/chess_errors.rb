@@ -43,4 +43,20 @@ module ChessErrors
   # This error is raised when a player is trying to move a piece that doesn't belong to him.
   class OolongError < MoveError
   end
+
+  # This error is raised when a player is trying to make an illegal promotion.
+  class PromotionError < MoveError
+    def initialize(message: self.class.name, piece: nil, tgt_rank: nil, tgt_file: nil, promotion_class: nil)
+      super(message: message, piece: piece, tgt_rank: tgt_rank, tgt_file: tgt_file)
+      @promotion_class = promotion_class
+    end
+
+    def to_s
+      if @promotion_class
+        super << ", and promoting it to #{@promotion_class}"
+      else
+        super
+      end
+    end
+  end
 end

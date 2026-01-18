@@ -158,7 +158,7 @@ class Queen < Piece
   end
 
   def blocked?(tgt_rank, tgt_file)
-    queen_blocked?(tgt_rank, tgt_file)
+    straight_or_diagonal_blocked?(tgt_rank, tgt_file)
   end
 end
 
@@ -238,7 +238,16 @@ end
 # It captures diagonally forward one square.
 class Pawn < Piece
   include PawnHelpers
+
+  # Defines the available classes that a pawn can promote to.
   PROMOTABLE_CLASSES = [Queen, Rook, Bishop, Knight].freeze
+
+  # Defines the sign of the rank change when a pawn of the specific player marches.
+  # In other words, it defines the direction of the players.
+  RANK_SIGN = {
+    black: 1,
+    white: -1
+  }.freeze
 
   attr_accessor :has_moved, :is_en_passant_vulnerable
 
@@ -257,49 +266,35 @@ class Pawn < Piece
   end
 
   def reachable?(tgt_rank, tgt_file)
-    pawn_marchable?(tgt_rank, tgt_file) ||
-      pawn_capturable?(tgt_rank, tgt_file) ||
-      two_square_move_reachable?(tgt_rank, tgt_file)
+    legal_pawn_march?(tgt_rank, tgt_file) ||
+      legal_pawn_capture?(tgt_rank, tgt_file) ||
+      legal_two_square_move?(tgt_rank, tgt_file) ||
+      legal_en_passant?(tgt_rank, tgt_file)
   end
 
   def blocked?(tgt_rank, tgt_file)
     march_blocked?(tgt_rank, tgt_file)
   end
 
+  def verify_side_effects(_tgt_rank, _tgt_file, promotion_class: nil, **)
+    return unless @promotion_class
+
+    legal_promotion?(promotion_class)
+  end
+
   def pre_side_effects!(tgt_rank, tgt_file, **)
-    en_passant! if legal_en_passant?(tgt_rank, tgt_file)
+    en_passant_take!(tgt_file) if legal_en_passant?(tgt_rank, tgt_file)
+
+    @is_en_passant_vulnerable = legal_two_square_move?(tgt_rank, tgt_file)
   end
 
   # There's clearly a bug that if the player never moves the pawn after it takes a two-square move,
   # the pawn remains the en-passant-vulnerable state.
   # However, i don't know how to elegantly fix it for now.
   # TODO: fix the bug.
-  def post_side_effects!(tgt_rank, tgt_file, promotion_class: nil, **)
-    promote_to!(promotion_class) if promotable?(promotion_class)
+  def post_side_effects!(_tgt_rank, _tgt_file, promotion_class: nil, **)
+    promote_to!(promotion_class) if legal_promotion?(promotion_class)
 
     @has_moved = true
-    @is_en_passant_vulnerable = two_square_move_reachable?(tgt_rank, tgt_file)
-  end
-
-  def first_move?
-    !@has_moved
-  end
-
-  def en_passant_vulnerable?
-    @is_en_passant_vulnerable
-  end
-
-  def promote_to!(promotion_class)
-    promotion_class.new(@board, @rank, @file, @player)
-  end
-
-  def promotable?(promotion_class)
-    @rank == end_rank && promotion_class in PROMOTABLE_CLASSES
-  end
-
-  # Oh no I misunderstand en passant's rules, the pawn should move diagonally after capturing instead of going forward.
-  # TODO: fix this silly mistake.
-  def en_passant!
-    en_passant_capture.remove
   end
 end

@@ -88,6 +88,28 @@ module ChessHelpers
       Vector.new(tgt_rank, tgt_file, @rank, @file)
     end
 
+    # Collects pieces on the path of a specific piece moving to the target square straightly or diagonally,
+    # excluding the two ends.
+    # If the direction to the target square is not straight or diagonal, throws a StandardError.
+    def collect_path(tgt_rank, tgt_file)
+      pos = pos_vec
+      direction_vec = direction_to(tgt_rank, tgt_file)
+      direction_unit = direction_vec.unitize
+      path = []
+
+      (1...direction_vec.len).each do |i|
+        dest = pos + direction_unit * i
+        path << dest.to_piece(@board)
+      end
+      path
+    end
+
+    # Returns true if there's any piece on a specific straight or diagnol path,
+    # exluding the two ends.
+    def straight_or_diagonal_blocked?(tgt_rank, tgt_file)
+      collect_path(tgt_rank, tgt_file).any? { |piece| !piece.nil? }
+    end
+
     # Includes helper methods for pieces that moves any number of squares in any straight or diagonal directions.
     # Despite its name, it's also for Rook and Bishop, since Queen is just a combination of the two in some way.
     module QueenHelpers
@@ -101,27 +123,6 @@ module ChessHelpers
 
       def queen_reachable?(tgt_rank, tgt_file)
         rook_reachable?(tgt_rank, tgt_file) || bishop_reachable?(tgt_rank, tgt_file)
-      end
-
-      # Collects pieces on the path of a specific queen moving to the target square, excluding the two ends.
-      # If the target square is not queen-reachable, throws a StandardError.
-      def collect_path(tgt_rank, tgt_file)
-        pos = pos_vec
-        direction_vec = direction_to(tgt_rank, tgt_file)
-        direction_unit = direction_vec.unitize
-        path = []
-
-        (1...direction_vec.len).each do |i|
-          dest = pos + direction_unit * i
-          path << dest.to_piece(@board)
-        end
-        path
-      end
-
-      # Returns true if there's any piece on the path of a queen moving to the target square.
-      # Also works well with rooks and bishops.
-      def queen_blocked?(tgt_rank, tgt_file)
-        collect_path(tgt_rank, tgt_file).any? { |piece| !piece.nil? }
       end
     end
 
@@ -141,45 +142,38 @@ module ChessHelpers
 
     # Includes helper methods for Pawn.
     module PawnHelpers
-      include QueenHelpers
-
-      # Just assume that black pawns march at the positive-rank direction and white pawns do the opposite.
       def rank_sign
-        if @player == :black
-          1
-        elsif @player == :white
-          -1
-        else
-          0
-        end
+        self.class::RANK_SIGN[@player] || 1
       end
 
       # Verifies normal one-square march, not considering the first two-square move.
-      def pawn_marchable?(tgt_rank, tgt_file)
+      def legal_pawn_march?(tgt_rank, tgt_file)
         direction = direction_to(tgt_rank, tgt_file)
-        return false unless direction.file.zero?
 
-        direction.rank == rank_sign
-      end
-
-      def march_blocked?(tgt_rank, tgt_file)
-        queen_blocked?(tgt_rank, tgt_file)
+        direction.file.zero? && direction.rank == rank_sign
       end
 
       # Verifies normal diagnal captures, not considering en passant which is handled independently.
-      def pawn_capturable?(tgt_rank, tgt_file)
-        return false if @board.piece_at(tgt_rank, tgt_file).nil?
-
+      def legal_pawn_capture?(tgt_rank, tgt_file)
         direction = direction_to(tgt_rank, tgt_file)
-        return false unless direction.file.abs == 1
 
-        direction.rank == rank_sign
+        !@board.piece_at(tgt_rank, tgt_file).nil? &&
+          direction.file.abs == 1 &&
+          direction.rank == rank_sign
+      end
+
+      def march_blocked?(tgt_rank, tgt_file)
+        straight_or_diagonal_blocked?(tgt_rank, tgt_file)
       end
 
       # Special rule 1: pawns can choose to move 2 squares forward on its very first move only.
-      def two_square_move_reachable?(tgt_rank, tgt_file)
+      def legal_two_square_move?(tgt_rank, tgt_file)
         direction = direction_to(tgt_rank, tgt_file)
         first_move? && direction.rank == rank_sign * 2
+      end
+
+      def first_move?
+        !@has_moved
       end
 
       # Special rule 2: pawns can capture adjacent enemy pawns only if the following conditions are all satisfied:
@@ -188,32 +182,40 @@ module ChessHelpers
       # 3.On the very next turn only, this pawn can capture the enemy pawn and move just one square forward.
       def legal_en_passant?(tgt_rank, tgt_file)
         direction = direction_to(tgt_rank, tgt_file)
-        return false unless direction.file.zero? && direction.rank == rank_sign
 
-        !en_passant_capture.nil?
+        direction.file.abs == 1 &&
+          direction.rank == rank_sign &&
+          !en_passant_capture(tgt_file).nil?
       end
 
-      def en_passant_capture
-        capture_arr = adjacent_pieces.select do |piece|
-          piece&.en_passant_vulnerable?
-        end
-        capture_arr[0]
+      def en_passant_take!(tgt_file)
+        en_passant_capture(tgt_file).remove
       end
 
-      def adjacent_pieces
-        [-1, 1].map { |file_sign| adjacent_piece_on_one_side(file_sign) }
+      def en_passant_capture(tgt_file)
+        adjacent_piece = @board.piece_at(@rank, tgt_file)
+
+        adjacent_piece if adjacent_piece.is_a?(self.class) &&
+                          adjacent_piece.en_passant_vulnerable?
       end
 
-      def adjacent_piece_on_one_side(file_sign)
-        (pos_vec + Vector.new(0, file_sign)).to_piece(@board)
-      end
-
-      def end_rank
-        (1 + rank_sign) / 2 * (@board.width - 1)
+      def en_passant_vulnerable?
+        @is_en_passant_vulnerable
       end
 
       # Special rule 3: when a pawn reaches the furthest rank from its starting position, it must be promoted.
       # When a pawn is promoted, it's replaced with a Queen, Rook, Bishop, or Knight of the same color.
+      def end_rank
+        (1 + rank_sign) / 2 * (@board.width - 1)
+      end
+
+      def promote_to!(promotion_class)
+        promotion_class.new(@board, @rank, @file, @player)
+      end
+
+      def legal_promotion?(promotion_class)
+        @rank == end_rank && self.class::PROMOTABLE_CLASSES.include?(promotion_class)
+      end
     end
   end
 end
