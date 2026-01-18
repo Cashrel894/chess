@@ -80,63 +80,62 @@ module ChessHelpers
       end
     end
 
-    def pos_of(piece)
-      Vector.new(piece.rank, piece.file)
+    def pos_vec
+      Vector.new(@rank, @file)
     end
 
-    def direction_of(piece, tgt_rank, tgt_file)
-      Vector.new(tgt_rank, tgt_file, piece.rank, piece.file)
+    def direction_to(tgt_rank, tgt_file)
+      Vector.new(tgt_rank, tgt_file, @rank, @file)
     end
 
     # Includes helper methods for pieces that moves any number of squares in any straight or diagonal directions.
     # Despite its name, it's also for Rook and Bishop, since Queen is just a combination of the two in some way.
     module QueenHelpers
-      def rook_reachable?(rook, tgt_rank, tgt_file)
-        direction_of(rook, tgt_rank, tgt_file).straight?
+      def rook_reachable?(tgt_rank, tgt_file)
+        direction_to(tgt_rank, tgt_file).straight?
       end
 
-      def bishop_reachable?(bishop, tgt_rank, tgt_file)
-        direction_of(bishop, tgt_rank, tgt_file).diagonal?
+      def bishop_reachable?(tgt_rank, tgt_file)
+        direction_to(tgt_rank, tgt_file).diagonal?
       end
 
-      def queen_reachable?(queen, tgt_rank, tgt_file)
-        rook_reachable?(queen, tgt_rank, tgt_file) || bishop_reachable?(queen, tgt_rank, tgt_file)
+      def queen_reachable?(tgt_rank, tgt_file)
+        rook_reachable?(tgt_rank, tgt_file) || bishop_reachable?(tgt_rank, tgt_file)
       end
 
       # Collects pieces on the path of a specific queen moving to the target square, excluding the two ends.
       # If the target square is not queen-reachable, throws a StandardError.
-      def collect_path(queen, tgt_rank, tgt_file)
-        board = queen.board
-        pos = pos_of(queen)
-        direction_vec = direction_of(queen, tgt_rank, tgt_file)
+      def collect_path(tgt_rank, tgt_file)
+        pos = pos_vec
+        direction_vec = direction_to(tgt_rank, tgt_file)
         direction_unit = direction_vec.unitize
         path = []
 
         (1...direction_vec.len).each do |i|
           dest = pos + direction_unit * i
-          path << dest.to_piece(queen.board)
+          path << dest.to_piece(@board)
         end
         path
       end
 
       # Returns true if there's any piece on the path of a queen moving to the target square.
       # Also works well with rooks and bishops.
-      def queen_blocked?(queen, tgt_rank, tgt_file)
-        collect_path(queen, tgt_rank, tgt_file).any? { |piece| !piece.nil? }
+      def queen_blocked?(tgt_rank, tgt_file)
+        collect_path(tgt_rank, tgt_file).any? { |piece| !piece.nil? }
       end
     end
 
     # Includes helper methods for Knight.
     module KnightHelpers
-      def knight_reachable?(knight, tgt_rank, tgt_file)
-        direction_of(knight, tgt_rank, tgt_file).l_shape?
+      def knight_reachable?(tgt_rank, tgt_file)
+        direction_to(tgt_rank, tgt_file).l_shape?
       end
     end
 
     # Includes helper methods for King.
     module KingHelpers
-      def king_reachable?(king, tgt_rank, tgt_file)
-        direction_of(king, tgt_rank, tgt_file).unit?
+      def king_reachable?(tgt_rank, tgt_file)
+        direction_to(tgt_rank, tgt_file).unit?
       end
     end
 
@@ -145,10 +144,10 @@ module ChessHelpers
       include QueenHelpers
 
       # Just assume that black pawns march at the positive-rank direction and white pawns do the opposite.
-      def rank_sign(pawn)
-        if pawn.player == :black
+      def rank_sign
+        if @player == :black
           1
-        elsif pawn.player == :white
+        elsif @player == :white
           -1
         else
           0
@@ -156,61 +155,61 @@ module ChessHelpers
       end
 
       # Verifies normal one-square march, not considering the first two-square move.
-      def pawn_marchable?(pawn, tgt_rank, tgt_file)
-        direction = direction_of(pawn, tgt_rank, tgt_file)
+      def pawn_marchable?(tgt_rank, tgt_file)
+        direction = direction_to(tgt_rank, tgt_file)
         return false unless direction.file.zero?
 
-        direction.rank == rank_sign(pawn)
+        direction.rank == rank_sign
       end
 
-      def march_blocked?(pawn, tgt_rank, tgt_file)
-        queen_blocked?(pawn, tgt_rank, tgt_file)
+      def march_blocked?(tgt_rank, tgt_file)
+        queen_blocked?(tgt_rank, tgt_file)
       end
 
       # Verifies normal diagnal captures, not considering en passant which is handled independently.
-      def pawn_capturable?(pawn, tgt_rank, tgt_file)
-        return false if pawn.board.piece_at(tgt_rank, tgt_file).nil?
+      def pawn_capturable?(tgt_rank, tgt_file)
+        return false if @board.piece_at(tgt_rank, tgt_file).nil?
 
-        direction = direction_of(pawn, tgt_rank, tgt_file)
+        direction = direction_to(tgt_rank, tgt_file)
         return false unless direction.file.abs == 1
 
-        direction.rank == rank_sign(pawn)
+        direction.rank == rank_sign
       end
 
       # Special rule 1: pawns can choose to move 2 squares forward on its very first move only.
-      def two_square_move_reachable?(pawn, tgt_rank, tgt_file)
-        direction = direction_of(pawn, tgt_rank, tgt_file)
-        pawn.first_move? && direction.rank == rank_sign(pawn) * 2
+      def two_square_move_reachable?(tgt_rank, tgt_file)
+        direction = direction_to(tgt_rank, tgt_file)
+        first_move? && direction.rank == rank_sign * 2
       end
 
       # Special rule 2: pawns can capture adjacent enemy pawns only if the following conditions are all satisfied:
       # 1.An opponent moves a pawn two squares forward from its starting position.
       # 2.The enemy pawn lands directly beside this pawn.
       # 3.On the very next turn only, this pawn can capture the enemy pawn and move just one square forward.
-      def legal_en_passant?(pawn, tgt_rank, tgt_file)
-        direction = direction_of(pawn, tgt_rank, tgt_file)
-        return false unless direction.file.zero? && direction.rank == rank_sign(pawn)
+      def legal_en_passant?(tgt_rank, tgt_file)
+        direction = direction_to(tgt_rank, tgt_file)
+        return false unless direction.file.zero? && direction.rank == rank_sign
 
-        !en_passant_capture(pawn).nil?
+        !en_passant_capture.nil?
       end
 
-      def en_passant_capture(pawn)
-        capture_arr = adjacent_pieces(pawn).select do |piece|
+      def en_passant_capture
+        capture_arr = adjacent_pieces.select do |piece|
           piece&.en_passant_vulnerable?
         end
         capture_arr[0]
       end
 
-      def adjacent_pieces(pawn)
-        [-1, 1].map { |file_sign| adjacent_piece_on_one_side(pawn, file_sign) }
+      def adjacent_pieces
+        [-1, 1].map { |file_sign| adjacent_piece_on_one_side(file_sign) }
       end
 
-      def adjacent_piece_on_one_side(pawn, file_sign)
-        (pos_of(pawn) + Vector.new(0, file_sign)).to_piece(pawn.board)
+      def adjacent_piece_on_one_side(file_sign)
+        (pos_vec + Vector.new(0, file_sign)).to_piece(@board)
       end
 
-      def end_rank(pawn)
-        (1 + rank_sign(pawn)) / 2 * (pawn.board.width - 1)
+      def end_rank
+        (1 + rank_sign) / 2 * (@board.width - 1)
       end
 
       # Special rule 3: when a pawn reaches the furthest rank from its starting position, it must be promoted.

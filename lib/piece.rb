@@ -154,11 +154,11 @@ class Queen < Piece
   end
 
   def reachable?(tgt_rank, tgt_file)
-    queen_reachable?(self, tgt_rank, tgt_file)
+    queen_reachable?(tgt_rank, tgt_file)
   end
 
   def blocked?(tgt_rank, tgt_file)
-    queen_blocked?(self, tgt_rank, tgt_file)
+    queen_blocked?(tgt_rank, tgt_file)
   end
 end
 
@@ -174,7 +174,7 @@ class Rook < Queen
   end
 
   def reachable?(tgt_rank, tgt_file)
-    rook_reachable?(self, tgt_rank, tgt_file)
+    rook_reachable?(tgt_rank, tgt_file)
   end
 end
 
@@ -190,7 +190,7 @@ class Bishop < Queen
   end
 
   def reachable?(tgt_rank, tgt_file)
-    bishop_reachable?(self, tgt_rank, tgt_file)
+    bishop_reachable?(tgt_rank, tgt_file)
   end
 end
 
@@ -209,7 +209,7 @@ class Knight < Piece
   end
 
   def reachable?(tgt_rank, tgt_file)
-    knight_reachable?(self, tgt_rank, tgt_file)
+    knight_reachable?(tgt_rank, tgt_file)
   end
 end
 
@@ -228,7 +228,7 @@ class King < Piece
   end
 
   def reachable?(tgt_rank, tgt_file)
-    king_reachable?(self, tgt_rank, tgt_file)
+    king_reachable?(tgt_rank, tgt_file)
   end
 end
 
@@ -257,17 +257,17 @@ class Pawn < Piece
   end
 
   def reachable?(tgt_rank, tgt_file)
-    pawn_marchable?(self, tgt_rank, tgt_file) ||
-      pawn_capturable?(self, tgt_rank, tgt_file) ||
-      two_square_move_reachable?(self, tgt_rank, tgt_file)
+    pawn_marchable?(tgt_rank, tgt_file) ||
+      pawn_capturable?(tgt_rank, tgt_file) ||
+      two_square_move_reachable?(tgt_rank, tgt_file)
   end
 
   def blocked?(tgt_rank, tgt_file)
-    march_blocked?(self, tgt_rank, tgt_file)
+    march_blocked?(tgt_rank, tgt_file)
   end
 
   def pre_side_effects!(tgt_rank, tgt_file, **)
-    en_passant! if legal_en_passant?(self, tgt_rank, tgt_file)
+    en_passant! if legal_en_passant?(tgt_rank, tgt_file)
   end
 
   # There's clearly a bug that if the player never moves the pawn after it takes a two-square move,
@@ -278,7 +278,7 @@ class Pawn < Piece
     promote_to!(promotion_class) if promotable?(promotion_class)
 
     @has_moved = true
-    @is_en_passant_vulnerable = two_square_move_reachable?(self, tgt_rank, tgt_file)
+    @is_en_passant_vulnerable = two_square_move_reachable?(tgt_rank, tgt_file)
   end
 
   def first_move?
@@ -294,12 +294,12 @@ class Pawn < Piece
   end
 
   def promotable?(promotion_class)
-    @rank == end_rank(self) && promotion_class in PROMOTABLE_CLASSES
+    @rank == end_rank && promotion_class in PROMOTABLE_CLASSES
   end
 
   # Oh no I misunderstand en passant's rules, the pawn should move diagonally after capturing instead of going forward.
   # TODO: fix this silly mistake.
   def en_passant!
-    en_passant_capture(self).remove
+    en_passant_capture.remove
   end
 end
